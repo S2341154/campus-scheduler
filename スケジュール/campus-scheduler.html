@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="時間割">
+<link rel="manifest" href="manifest.json">
+<title>時間割アプリ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f1a;
+    --bg2: #1a1a2e;
+    --bg3: #16213e;
+    --card: #1e1e35;
+    --card2: #252545;
+    --accent: #7c6af5;
+    --accent2: #a594f9;
+    --green: #4ade80;
+    --red: #f87171;
+    --amber: #fbbf24;
+    --text: #e8e8f0;
+    --text2: #9090b0;
+    --border: rgba(255,255,255,0.08);
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    max-width: 480px;
+    margin: 0 auto;
+    padding-bottom: 80px;
+  }
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    padding: 20px 20px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .header h1 { font-size: 20px; font-weight: 700; color: var(--accent2); }
+  .date-str { font-size: 13px; color: var(--text2); }
+  /* Nav */
+  .nav {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 480px;
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 200;
+  }
+  .nav-btn {
+    flex: 1; padding: 10px 0 14px; background: none; border: none;
+    color: var(--text2); font-size: 11px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    transition: color 0.2s;
+  }
+  .nav-btn.active { color: var(--accent2); }
+  .nav-icon { font-size: 20px; line-height: 1; }
+  /* Pages */
+  .page { display: none; padding: 16px 16px 0; }
+  .page.active { display: block; }
+  /* Section title */
+  .section-title {
+    font-size: 13px; font-weight: 500; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin: 20px 0 10px;
+  }
+  /* Today's classes */
+  .today-class {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    border-left: 3px solid var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .today-class.past { border-left-color: var(--text2); opacity: 0.6; }
+  .today-class.now { border-left-color: var(--green); }
+  .class-time { font-size: 12px; color: var(--text2); min-width: 52px; }
+  .class-info { flex: 1; }
+  .class-name { font-size: 15px; font-weight: 500; }
+  .class-room { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .class-badge {
+    font-size: 11px; padding: 3px 8px; border-radius: 20px;
+    background: rgba(124,106,245,0.2); color: var(--accent2);
+  }
+  .class-badge.now { background: rgba(74,222,128,0.2); color: var(--green); }
+  /* Tasks */
+  .task-item {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 13px 15px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .task-check {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid var(--border);
+    background: none; cursor: pointer;
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .task-check.done { background: var(--green); border-color: var(--green); }
+  .task-check.done::after { content: '✓'; color: #0f0f1a; font-size: 13px; font-weight: 700; }
+  .task-body { flex: 1; min-width: 0; }
+  .task-title { font-size: 14px; font-weight: 500; }
+  .task-title.done { text-decoration: line-through; color: var(--text2); }
+  .task-meta { font-size: 12px; color: var(--text2); margin-top: 3px; }
+  .task-due {
+    font-size: 12px; font-weight: 500; padding: 3px 8px;
+    border-radius: 20px; white-space: nowrap;
+  }
+  .due-urgent { background: rgba(248,113,113,0.2); color: var(--red); }
+  .due-soon { background: rgba(251,191,36,0.2); color: var(--amber); }
+  .due-ok { background: rgba(74,222,128,0.15); color: var(--green); }
+  /* Timetable */
+  .timetable { overflow-x: auto; }
+  .tt-grid {
+    display: grid;
+    grid-template-columns: 28px repeat(5, 1fr);
+    gap: 2px;
+    min-width: 300px;
+  }
+  .tt-head {
+    font-size: 12px; color: var(--text2); text-align: center;
+    padding: 4px 2px; font-weight: 500;
+  }
+  .tt-time {
+    font-size: 9px; color: var(--text2); text-align: right;
+    padding: 4px 3px 0; line-height: 1.2;
+  }
+  .tt-cell {
+    background: var(--card); border-radius: 6px;
+    padding: 4px 4px; height: 56px;
+    cursor: pointer; transition: all 0.2s;
+    display: flex; flex-direction: column; justify-content: center;
+    overflow: hidden;
+  }
+  .tt-cell:active { transform: scale(0.97); }
+  .tt-cell.empty { background: rgba(255,255,255,0.03); }
+  .tt-cell.filled { background: rgba(124,106,245,0.15); border: 1px solid rgba(124,106,245,0.3); cursor: pointer; }
+  .tt-cell.today-col { box-shadow: inset 0 0 0 1px rgba(74,222,128,0.25); }
+  .tt-subject { font-size: 9px; font-weight: 500; color: var(--accent2); line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+  .tt-room { display: none; }
+  /* Attendance */
+  .attend-item {
+    background: var(--card); border-radius: var(--radius);
+    padding: 13px 16px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .attend-subject { flex: 1; font-size: 14px; font-weight: 500; }
+  .attend-count {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .attend-dots {
+    display: flex; gap: 3px; flex-wrap: wrap; max-width: 100px;
+  }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .dot.present { background: var(--green); }
+  .dot.absent { background: var(--red); }
+  .dot.late { background: var(--amber); }
+  .dot.future { background: var(--border); border: 1px solid var(--text2); }
+  .attend-stat { font-size: 13px; color: var(--text2); white-space: nowrap; }
+  .attend-stat span { color: var(--text); font-weight: 500; }
+  /* Add button */
+  .fab {
+    position: fixed; bottom: 76px; right: 20px;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--accent); color: white;
+    border: none; font-size: 24px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 20px rgba(124,106,245,0.4);
+    z-index: 150;
+    transition: transform 0.2s;
+  }
+  .fab:active { transform: scale(0.93); }
+  /* Modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7); z-index: 300;
+    align-items: flex-end;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--bg2); border-radius: 24px 24px 0 0;
+    padding: 24px 20px 40px;
+    width: 100%; max-width: 480px; margin: 0 auto;
+    max-height: 85vh; overflow-y: auto;
+  }
+  .modal h2 { font-size: 17px; font-weight: 700; margin-bottom: 20px; }
+  .form-row { margin-bottom: 14px; }
+  .form-row label { font-size: 12px; color: var(--text2); display: block; margin-bottom: 6px; }
+  .form-row input, .form-row select, .form-row textarea {
+    width: 100%; padding: 11px 13px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text);
+    font-size: 15px; font-family: inherit;
+  }
+  .form-row textarea { height: 80px; resize: none; }
+  .form-row select option { background: var(--card2); }
+  .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+  .btn {
+    flex: 1; padding: 13px; border-radius: 12px;
+    border: none; font-size: 15px; font-weight: 500;
+    cursor: pointer; font-family: inherit; transition: opacity 0.2s;
+  }
+  .btn:active { opacity: 0.75; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-secondary { background: var(--card2); color: var(--text2); }
+  /* Notification bar */
+  .notif-bar {
+    background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.3);
+    border-radius: var(--radius-sm); padding: 10px 14px;
+    font-size: 13px; margin-bottom: 12px; display: none;
+  }
+  .notif-bar.show { display: block; }
+  /* Settings rows */
+  .setting-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--card); border-radius: var(--radius);
+    padding: 14px 16px; margin-bottom: 8px;
+  }
+  .setting-label { font-size: 14px; }
+  .setting-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .setting-row select {
+    background: var(--card2); border: 1px solid var(--border);
+    color: var(--text); padding: 6px 10px; border-radius: 8px;
+    font-size: 13px;
+  }
+  /* Pill tabs */
+  .tabs { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 2px; }
+  .tab {
+    padding: 7px 16px; border-radius: 20px; font-size: 13px;
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--text2); cursor: pointer; white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: white; }
+  /* Alert strip */
+  .alert-strip {
+    background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.3);
+    border-radius: var(--radius-sm); padding: 10px 14px;
+    font-size: 13px; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .empty-state { text-align: center; color: var(--text2); padding: 40px 20px; font-size: 14px; }
+  /* 出席ボタン */
+  .attend-btns { display: flex; gap: 6px; }
+  .attend-btn {
+    padding: 5px 10px; border-radius: 8px; border: none;
+    font-size: 12px; cursor: pointer; font-family: inherit; font-weight: 500;
+    transition: opacity 0.2s;
+  }
+  .attend-btn:active { opacity: 0.7; }
+  .btn-present { background: rgba(74,222,128,0.2); color: var(--green); }
+  .btn-absent  { background: rgba(248,113,113,0.2); color: var(--red); }
+  .btn-late    { background: rgba(251,191,36,0.2);  color: var(--amber); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <h1>📚 時間割</h1>
+    <div id="next-class-header" style="font-size:12px;color:var(--text2)"></div>
+  </div>
+  <div class="date-str" id="date-str"></div>
+</div>
+
+<!-- 今日 -->
+<div id="page-today" class="page active">
+  <div id="alert-area"></div>
+  <!-- 次の授業カウントダウン -->
+  <div id="next-class-banner" style="display:none;background:linear-gradient(135deg,rgba(124,106,245,0.18),rgba(74,222,128,0.12));border:1px solid rgba(124,106,245,0.3);border-radius:14px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px">
+    <div style="font-size:26px;line-height:1">⏰</div>
+    <div style="flex:1">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:2px" id="next-class-label">次の授業</div>
+      <div style="font-size:15px;font-weight:700" id="next-class-name"></div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:22px;font-weight:700;color:var(--accent2);line-height:1" id="next-class-countdown"></div>
+      <div style="font-size:10px;color:var(--text2);margin-top:2px">分後</div>
+    </div>
+  </div>
+  <!-- iOSリマインダー登録ボタン -->
+  <div id="reminder-register-area" style="margin-bottom:12px;display:none">
+    <button onclick="registerTodayReminders()" style="width:100%;padding:12px;border-radius:12px;background:rgba(251,191,36,0.13);border:1px solid rgba(251,191,36,0.35);color:var(--amber);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px">
+      <span>📅</span><span>今日の授業をリマインダーに登録する</span>
+    </button>
+    <div style="font-size:11px;color:var(--text2);text-align:center;margin-top:5px">iOSリマインダーアプリに授業開始通知を追加します</div>
+  </div>
+  <p class="section-title">今日の授業</p>
+  <div id="today-classes"></div>
+  <p class="section-title">未完了の課題</p>
+  <div id="today-tasks"></div>
+</div>
+
+<!-- 課題 -->
+<div id="page-tasks" class="page">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div class="tabs" style="margin:0">
+      <div class="tab active" onclick="filterTasks('all',this)">すべて</div>
+      <div class="tab" onclick="filterTasks('pending',this)">未完了</div>
+      <div class="tab" onclick="filterTasks('done',this)">完了済み</div>
+    </div>
+    <button onclick="openScanModal('tasks')" style="flex-shrink:0;display:flex;align-items:center;gap:5px;background:rgba(124,106,245,0.15);border:1px solid rgba(124,106,245,0.3);color:var(--accent2);padding:7px 13px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;margin-left:8px">
+      📷 読み取る
+    </button>
+  </div>
+  <div id="task-list"></div>
+</div>
+
+<!-- 時間割 -->
+<div id="page-tt" class="page">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+    <p class="section-title" style="margin:0">週間時間割</p>
+    <button onclick="openScanModal('tt')" style="display:flex;align-items:center;gap:5px;background:rgba(124,106,245,0.15);border:1px solid rgba(124,106,245,0.3);color:var(--accent2);padding:7px 13px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit">
+      📷 スクショから読み取る
+    </button>
+  </div>
+  <div class="timetable" style="margin-top:12px">
+    <div class="tt-grid" id="tt-grid"></div>
+  </div>
+  <p style="font-size:12px;color:var(--text2);margin-top:12px;text-align:center">セルをタップして授業を個別編集</p>
+</div>
+
+<!-- 出席 -->
+<div id="page-attend" class="page">
+  <p class="section-title">出席記録</p>
+  <div id="attend-list"></div>
+</div>
+
+<!-- 設定 -->
+<div id="page-settings" class="page">
+  <p class="section-title">🔗 よく使うリンク</p>
+  <div style="background:var(--card);border-radius:var(--radius);padding:14px;margin-bottom:8px">
+    <div style="font-size:12px;color:var(--text2);margin-bottom:10px">マイログ・大学サービス</div>
+    <div style="display:flex;flex-direction:column;gap:6px" id="quick-links-list"></div>
+  </div>
+  <p class="section-title">担任・チューター</p>
+  <div style="background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:8px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+      <div style="width:42px;height:42px;border-radius:50%;background:rgba(124,106,245,0.2);display:flex;align-items:center;justify-content:center;font-size:18px">👨‍🏫</div>
+      <div>
+        <div style="font-size:15px;font-weight:500">荒木 圭典 先生</div>
+        <div style="font-size:12px;color:var(--text2)">担任チューター</div>
+      </div>
+    </div>
+    <a href="mailto:araki@ous.ac.jp" style="display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(124,106,245,0.15);border:1px solid rgba(124,106,245,0.3);color:var(--accent2);padding:11px;border-radius:12px;font-size:14px;font-weight:500;text-decoration:none;margin-bottom:8px">
+      ✉️ araki@ous.ac.jp にメール
+    </a>
+    <div style="font-size:12px;color:var(--text2);text-align:center">研究室: C3号館6階</div>
+  </div>
+
+  <p class="section-title">通知・リマインダー</p>
+  <div id="sw-status-banner" style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);border-radius:var(--radius);padding:13px 15px;margin-bottom:8px;font-size:12px;color:var(--green);line-height:1.6;display:none">
+    ✅ バックグラウンド通知が有効です。アプリを閉じていても通知が届きます。
+  </div>
+  <div id="sw-warn-banner" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:var(--radius);padding:13px 15px;margin-bottom:8px;font-size:12px;color:var(--amber);line-height:1.6">
+    ⏳ 通知の準備中...
+  </div>
+  <div style="background:var(--card);border-radius:var(--radius);padding:14px 16px;margin-bottom:8px">
+    <div style="font-size:14px;font-weight:500;margin-bottom:4px">🔔 授業通知の設定</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6">授業の何分前に通知するか選択してください。設定後「今日の通知をスケジュール」を押してください。</div>
+    <div class="form-row" style="margin-bottom:10px">
+      <label>通知タイミング</label>
+      <select id="notify-before" onchange="saveSettings()" style="background:var(--card2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:14px;width:100%">
+        <option value="10">10分前</option>
+        <option value="15">15分前</option>
+        <option value="30" selected>30分前</option>
+        <option value="60">1時間前</option>
+      </select>
+    </div>
+    <button onclick="scheduleNotificationsNow()" style="width:100%;padding:12px;border-radius:10px;background:rgba(124,106,245,0.15);border:1px solid rgba(124,106,245,0.3);color:var(--accent2);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px">
+      🔔 今日の通知をスケジュール
+    </button>
+    <button onclick="registerTodayReminders()" style="width:100%;padding:11px;border-radius:10px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);color:var(--amber);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit">
+      📅 カレンダーファイル（.ics）でも登録する
+    </button>
+    <div id="reminder-status" style="font-size:12px;color:var(--text2);text-align:center;margin-top:8px;min-height:16px"></div>
+  </div>
+  <div class="setting-row">
+    <div>
+      <div class="setting-label">課題リマインダー（アラート）</div>
+      <div class="setting-sub">期限前にアプリ内で警告表示</div>
+    </div>
+    <select id="remind-task" onchange="saveSettings()">
+      <option value="1">1日前</option>
+      <option value="2" selected>2日前</option>
+      <option value="3">3日前</option>
+    </select>
+  </div>
+  <p class="section-title">データ</p>
+  <div class="setting-row" style="cursor:pointer" onclick="exportData()">
+    <div class="setting-label">データをエクスポート</div>
+    <span style="color:var(--text2)">→</span>
+  </div>
+  <div class="setting-row" style="cursor:pointer" onclick="clearAll()">
+    <div class="setting-label" style="color:var(--red)">データをすべて削除</div>
+    <span style="color:var(--text2)">→</span>
+  </div>
+  <p style="font-size:12px;color:var(--text2);text-align:center;margin-top:24px">
+    ホーム画面に追加するとアプリとして使えます
+  </p>
+</div>
+
+<!-- ナビ -->
+<nav class="nav">
+  <button class="nav-btn active" onclick="showPage('today',this)">
+    <span class="nav-icon">🏠</span>今日
+  </button>
+  <button class="nav-btn" onclick="showPage('tasks',this)">
+    <span class="nav-icon">📝</span>課題
+  </button>
+  <button class="nav-btn" onclick="showPage('tt',this)">
+    <span class="nav-icon">📅</span>時間割
+  </button>
+  <button class="nav-btn" onclick="showPage('attend',this)">
+    <span class="nav-icon">✅</span>出席
+  </button>
+  <button class="nav-btn" onclick="showPage('settings',this)">
+    <span class="nav-icon">⚙️</span>設定
+  </button>
+</nav>
+
+<button class="fab" id="fab" onclick="openAdd()">＋</button>
+
+<!-- モーダル: 課題追加 -->
+<div class="modal-overlay" id="modal-task">
+  <div class="modal">
+    <h2>課題を追加</h2>
+    <div class="form-row"><label>タイトル</label><input id="t-title" placeholder="例: レポート第2章"></div>
+    <div class="form-row"><label>科目</label><input id="t-subject" placeholder="例: 情報処理論"></div>
+    <div class="form-row"><label>提出期限</label><input id="t-due" type="datetime-local"></div>
+    <div class="form-row"><label>メモ</label><textarea id="t-memo" placeholder="詳細や注意事項"></textarea></div>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" onclick="closeModal('modal-task')">キャンセル</button>
+      <button class="btn btn-primary" onclick="addTask()">追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- モーダル: 授業追加 -->
+<div class="modal-overlay" id="modal-class">
+  <div class="modal">
+    <h2 id="class-modal-title">授業を登録</h2>
+    <div class="form-row"><label>科目名</label><input id="c-name" placeholder="例: 微分積分学"></div>
+    <div class="form-row"><label>教室</label><input id="c-room" placeholder="例: A棟201"></div>
+    <div class="form-row"><label>担当教員（任意）</label><input id="c-teacher" placeholder="例: 山田先生"></div>
+    <div class="form-row"><label>授業コード（任意）</label><input id="c-code" placeholder="例: F17780" style="font-family:monospace"></div>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" onclick="closeModal('modal-class')">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveClass()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- モーダル: 授業詳細 -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal">
+    <div id="detail-period-badge" style="display:inline-block;font-size:12px;padding:4px 12px;border-radius:20px;background:rgba(124,106,245,0.2);color:var(--accent2);margin-bottom:14px"></div>
+    <div style="font-size:20px;font-weight:700;margin-bottom:4px" id="detail-name"></div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:14px" id="detail-teacher"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div style="background:var(--card);border-radius:10px;padding:11px">
+        <div style="font-size:10px;color:var(--text2);margin-bottom:3px">時間</div>
+        <div style="font-size:13px;font-weight:500" id="detail-time"></div>
+      </div>
+      <div style="background:var(--card);border-radius:10px;padding:11px">
+        <div style="font-size:10px;color:var(--text2);margin-bottom:3px">教室</div>
+        <div style="font-size:12px;font-weight:500" id="detail-room"></div>
+      </div>
+      <div style="background:var(--card);border-radius:10px;padding:11px">
+        <div style="font-size:10px;color:var(--text2);margin-bottom:3px">単位</div>
+        <div style="font-size:13px;font-weight:500" id="detail-credits"></div>
+      </div>
+      <div style="background:var(--card);border-radius:10px;padding:11px">
+        <div style="font-size:10px;color:var(--text2);margin-bottom:3px">形態</div>
+        <div style="font-size:11px;font-weight:500" id="detail-format"></div>
+      </div>
+    </div>
+
+    <!-- 成績評価 -->
+    <div id="detail-grade-area" style="display:none;background:var(--card);border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:5px">📊 成績評価</div>
+      <div style="font-size:12px;line-height:1.7" id="detail-grade"></div>
+    </div>
+
+    <!-- 教科書 -->
+    <div id="detail-book-area" style="display:none;background:var(--card);border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:5px">📖 教科書</div>
+      <div style="font-size:12px;line-height:1.7" id="detail-book"></div>
+    </div>
+
+    <!-- 連絡先・メール -->
+    <div id="detail-contact-area" style="display:none;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px">📬 連絡先</div>
+      <div id="detail-contact-btns" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+
+    <!-- マップ -->
+    <div id="detail-map-btn" style="display:none;margin-bottom:10px">
+      <button onclick="detailShowMap()" style="width:100%;padding:11px;border-radius:12px;background:rgba(124,106,245,0.15);border:1px solid rgba(124,106,245,0.3);color:var(--accent2);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit">
+        📍 建物マップを見る
+      </button>
+    </div>
+
+    <!-- mylogリンク -->
+    <div id="detail-mylog-btn" style="display:none;margin-bottom:10px">
+      <a id="detail-mylog-link" href="#" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.3);color:var(--green);padding:11px;border-radius:12px;font-size:13px;font-weight:500;text-decoration:none">
+        🌐 mylogで授業ページを開く
+      </a>
+    </div>
+
+    <!-- 関連課題 -->
+    <div id="detail-tasks-area" style="margin-bottom:14px"></div>
+
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-secondary" onclick="closeModal('modal-detail')">閉じる</button>
+      <button class="btn btn-primary" onclick="detailEdit()" style="flex:0.6">編集</button>
+    </div>
+  </div>
+</div>
+
+<!-- モーダル: 建物マップ -->
+<div class="modal-overlay" id="modal-bmap">
+  <div class="modal" style="padding-bottom:24px">
+    <div id="bmap-color" style="height:5px;border-radius:6px;margin-bottom:16px"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div>
+        <div style="font-size:16px;font-weight:700" id="bmap-name"></div>
+        <div style="font-size:12px;color:var(--accent2);margin-top:2px" id="bmap-room"></div>
+      </div>
+      <div id="bmap-block-badge" style="font-size:22px;font-weight:700;opacity:0.8"></div>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:10px" id="bmap-desc"></div>
+
+    <!-- キャンパスマップ画像 + ピン -->
+    <div style="position:relative;border-radius:12px;overflow:hidden;margin-bottom:12px;background:var(--card)">
+      <img src="https://www.ous.ac.jp/common/images/campusmap/campusmap_okayama.jpg"
+           onerror="this.src='https://www1.ous.ac.jp/gakusyu/2017rikadaimap2.pdf';this.onerror=null"
+           style="width:100%;display:block;opacity:0.9" id="bmap-img">
+      <div id="bmap-pin" style="position:absolute;font-size:28px;transform:translate(-50%,-100%);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));transition:all 0.3s">📍</div>
+    </div>
+
+    <div style="background:var(--card);border-radius:10px;padding:11px 13px;font-size:12px;margin-bottom:14px">
+      <div style="color:var(--text2);margin-bottom:3px;font-size:11px">フロア情報</div>
+      <div id="bmap-floors" style="color:var(--text);line-height:1.7"></div>
+    </div>
+
+    <a id="bmap-pdflink" href="https://www1.ous.ac.jp/gakusyu/2017rikadaimap2.pdf" target="_blank"
+       style="display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(124,106,245,0.15);border:1px solid rgba(124,106,245,0.3);color:var(--accent2);padding:11px;border-radius:12px;font-size:14px;font-weight:500;text-decoration:none;margin-bottom:10px">
+      🗺️ 岡山理科大キャンパスマップ（PDF）
+    </a>
+    <button class="btn btn-secondary" onclick="closeModal('modal-bmap')">閉じる</button>
+  </div>
+</div>
+
+<!-- モーダル: スクショ読み取り -->
+<div class="modal-overlay" id="modal-scan">
+  <div class="modal">
+    <h2 id="scan-title">スクショから読み取る</h2>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px" id="scan-desc">大学ポータルの時間割ページのスクショを選択してください</p>
+    <div id="scan-drop" onclick="document.getElementById('scan-file').click()"
+      style="border:2px dashed rgba(124,106,245,0.4);border-radius:14px;padding:30px 20px;text-align:center;cursor:pointer;margin-bottom:14px;transition:all 0.2s">
+      <div style="font-size:36px;margin-bottom:8px">📷</div>
+      <div style="font-size:14px;color:var(--text2)">タップして画像を選択</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:4px">スクリーンショット・写真に対応</div>
+    </div>
+    <input type="file" id="scan-file" accept="image/*" style="display:none" onchange="handleScanFile(event)">
+    <div id="scan-preview" style="display:none;margin-bottom:14px">
+      <img id="scan-img" style="width:100%;border-radius:10px;max-height:200px;object-fit:contain;background:var(--card)">
+    </div>
+    <div id="scan-result" style="display:none">
+      <div id="scan-result-content"></div>
+    </div>
+    <div id="scan-loading" style="display:none;text-align:center;padding:20px">
+      <div style="font-size:24px;animation:spin 1s linear infinite;display:inline-block">⏳</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:8px">AIが読み取り中...</div>
+    </div>
+    <div class="modal-btns" id="scan-btns">
+      <button class="btn btn-secondary" onclick="closeModal('modal-scan')">キャンセル</button>
+      <button class="btn btn-primary" id="scan-submit-btn" style="display:none" onclick="submitScan()">この内容で登録</button>
+    </div>
+  </div>
+</div>
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+.scan-item { background:var(--card2); border-radius:10px; padding:10px 12px; margin-bottom:6px; font-size:13px; }
+.scan-item-title { font-weight:500; margin-bottom:3px; }
+.scan-item-meta { color:var(--text2); font-size:12px; }
+</style>
+
+<script>
+// ===== Data =====
+const PERIOD_TIMES = [
+  {label:'1限',start:'09:10',end:'10:40'},
+  {label:'2限',start:'10:55',end:'12:25'},
+  {label:'3限',start:'13:15',end:'14:45'},
+  {label:'4限',start:'15:00',end:'16:30'},
+  {label:'5限',start:'16:45',end:'18:15'},
+];
+const DAYS = ['月','火','水','木','金'];
+
+function loadData(key, def){ try{ return JSON.parse(localStorage.getItem(key))||def; }catch(e){ return def; } }
+function saveData(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+let timetable = loadData('tt', {});
+let tasks = loadData('tasks', []);
+let attendance = loadData('attend', {});
+let settings = loadData('settings', { notifyBefore: 30, remindTask: 2 });
+
+// 初回のみスクショから読み取ったデータをセット
+if(!localStorage.getItem('tt')){
+  timetable = {
+    "1-0": {"name":"情報理工学概論","room":"ONLINE","teacher":"藤本 真作"},
+    "2-0": {"name":"プログラミング基礎","room":"A1号館6階情報科学科実験室2","teacher":"荒木 圭典"},
+    "0-1": {"name":"線形代数Ⅰ","room":"A0532講義室","teacher":"江本 正喜"},
+    "1-1": {"name":"初修外国語１ 中国語","room":"A0561講義室","teacher":"楊 霊琳"},
+    "2-1": {"name":"フレッシュマンセミナー","room":"C1号館8階理大ホール","teacher":"野間川内 一樹"},
+    "3-1": {"name":"基礎解析Ⅰ","room":"A0521講義室","teacher":"荒木 圭典"},
+    "0-2": {"name":"情報リテラシー","room":"A1号館5階メディア実習室","teacher":"荒木 圭典"},
+    "1-2": {"name":"電子計算機概論","room":"A0521講義室","teacher":"佐藤 洋一郎"},
+    "2-2": {"name":"クリエイティブチャレンジⅠ","room":"A7号館2階ものづくり実習室","teacher":"赤木 徹也"},
+    "4-2": {"name":"科学・工作ボランティア入門","room":"B0521講義室","teacher":"高原 周一"},
+    "0-3": {"name":"リメディアル講座（物理）１","room":"A0133講義室","teacher":"松島 康"},
+    "1-3": {"name":"リメディアル講座（数学）２","room":"A0125講義室","teacher":"和田 真治"},
+    "3-3": {"name":"技術を読みとく（AI時代を読みとく）","room":"ONLINE","teacher":"榊原 道夫"},
+    "4-3": {"name":"基盤化学実験 金45","room":"A1号館3階化学実験室A","teacher":"青木 宏之"},
+    "0-4": {"name":"リメディアル講座（数学）１","room":"A0126講義室","teacher":"和田 真治"},
+    "4-4": {"name":"基盤化学実験 金45","room":"A1号館3階化学実験室A","teacher":"青木 宏之"},
+  };
+  saveData('tt', timetable);
+  Object.values(timetable).forEach(c=>{ if(!attendance[c.name]) attendance[c.name]=[]; });
+  saveData('attend', attendance);
+}
+
+// ===== Nav =====
+let currentPage = 'today';
+let currentEditCell = null;
+let currentTaskFilter = 'all';
+
+function showPage(name, btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  btn.classList.add('active');
+  currentPage = name;
+  document.getElementById('fab').style.display = (name==='today'||name==='tasks'||name==='tt') ? 'flex' : 'none';
+  if(name==='today') renderToday();
+  if(name==='tasks') renderTasks();
+  if(name==='tt') renderTimetable();
+  if(name==='attend') renderAttendance();
+  if(name==='settings') { loadSettings(); renderQuickLinks(); }
+}
+
+// ===== Date helpers =====
+function todayDow(){ return (new Date().getDay()+6)%7; } // 0=月
+function formatDate(d){
+  const now = new Date();
+  const dd = new Date(d);
+  const diff = Math.ceil((dd - now) / 86400000);
+  if(diff < 0) return '期限切れ';
+  if(diff === 0) return '今日まで';
+  if(diff === 1) return '明日まで';
+  return `${dd.getMonth()+1}/${dd.getDate()} ${String(dd.getHours()).padStart(2,'0')}:${String(dd.getMinutes()).padStart(2,'0')}まで`;
+}
+function dueSeverity(d){
+  const now = new Date();
+  const diff = (new Date(d) - now) / 86400000;
+  if(diff < 0) return 'urgent';
+  if(diff < 2) return 'urgent';
+  if(diff < settings.remindTask+1) return 'soon';
+  return 'ok';
+}
+
+// ===== Today Page =====
+function renderToday(){
+  const now = new Date();
+  const dow = todayDow();
+  const h = now.getHours(), m = now.getMinutes();
+  const nowMin = h*60+m;
+  const dayNames = ['日','月','火','水','木','金','土'];
+  document.getElementById('date-str').textContent =
+    `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${dayNames[now.getDay()]}）`;
+
+  // Alerts
+  const alertArea = document.getElementById('alert-area');
+  alertArea.innerHTML = '';
+  const urgentTasks = tasks.filter(t=>!t.done && t.due && dueSeverity(t.due)==='urgent');
+  urgentTasks.forEach(t=>{
+    alertArea.innerHTML += `<div class="alert-strip">⚠️ <b>${t.title}</b>の提出期限が迫っています</div>`;
+  });
+
+  // Today classes (weekday only)
+  const classesEl = document.getElementById('today-classes');
+  if(dow >= 5){ classesEl.innerHTML = '<div class="empty-state">今日は授業がありません🎉</div>'; }
+  else {
+    let html = '';
+    PERIOD_TIMES.forEach((p,i)=>{
+      const c = timetable[`${dow}-${i}`];
+      if(!c) return;
+      const [sh,sm] = p.start.split(':').map(Number);
+      const [eh,em] = p.end.split(':').map(Number);
+      const startMin = sh*60+sm, endMin = eh*60+em;
+      let status = nowMin < startMin ? 'upcoming' : nowMin <= endMin ? 'now' : 'past';
+      let badge = status==='now' ? '<span class="class-badge now">授業中</span>' : status==='upcoming' ? `<span class="class-badge">${p.start}〜${p.end}</span>` : `<span class="class-badge" style="opacity:0.5">${p.end}終了</span>`;
+      const binfo = getBuildingInfo(c.room||'');
+      const roomHtml = c.room
+        ? (binfo
+            ? `<div class="class-room" style="color:var(--accent2)">📍 ${c.room}</div>`
+            : `<div class="class-room">${c.room}</div>`)
+        : '';
+      html += `<div class="today-class ${status==='past'?'past':''} ${status==='now'?'now':''}" onclick="showClassDetailByDowPeriod(${dow},${i})" style="cursor:pointer">
+        <div class="class-time">${p.label}<br><span style="font-size:11px">${p.start}</span><br><span style="font-size:10px;color:var(--text2)">〜${p.end}</span></div>
+        <div class="class-info">
+          <div class="class-name">${c.name}</div>
+          ${roomHtml}
+        </div>${badge}</div>`;
+    });
+    classesEl.innerHTML = html || '<div class="empty-state">今日の授業はありません</div>';
+  }
+
+  // Next class banner
+  renderNextClassBanner();
+
+  // Pending tasks
+  const tasksEl = document.getElementById('today-tasks');
+  const pending = tasks.filter(t=>!t.done).sort((a,b)=>new Date(a.due)-new Date(b.due));
+  if(!pending.length){
+    tasksEl.innerHTML = '<div class="empty-state">未完了の課題はありません✨</div>';
+  } else {
+    tasksEl.innerHTML = pending.slice(0,5).map(t=>taskHTML(t)).join('');
+  }
+}
+
+function taskHTML(t){
+  const sev = t.due ? dueSeverity(t.due) : 'ok';
+  const dueClass = sev==='urgent'?'due-urgent':sev==='soon'?'due-soon':'due-ok';
+  return `<div class="task-item">
+    <button class="task-check ${t.done?'done':''}" onclick="toggleTask('${t.id}')"></button>
+    <div class="task-body">
+      <div class="task-title ${t.done?'done':''}">${t.title}</div>
+      <div class="task-meta">${t.subject||''}</div>
+    </div>
+    ${t.due?`<div class="task-due ${dueClass}">${formatDate(t.due)}</div>`:''}
+  </div>`;
+}
+
+// ===== Tasks Page =====
+function renderTasks(){
+  const el = document.getElementById('task-list');
+  let list = [...tasks].sort((a,b)=>new Date(a.due||'9999')-new Date(b.due||'9999'));
+  if(currentTaskFilter==='pending') list = list.filter(t=>!t.done);
+  if(currentTaskFilter==='done') list = list.filter(t=>t.done);
+  if(!list.length){
+    el.innerHTML='<div class="empty-state">課題がありません</div>'; return;
+  }
+  el.innerHTML = list.map(t=>`<div class="task-item" style="position:relative">
+    <button class="task-check ${t.done?'done':''}" onclick="toggleTask('${t.id}')"></button>
+    <div class="task-body">
+      <div class="task-title ${t.done?'done':''}">${t.title}</div>
+      <div class="task-meta">${t.subject||''} ${t.memo?'· '+t.memo:''}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+      ${t.due?`<div class="task-due ${dueSeverity(t.due)==='urgent'?'due-urgent':dueSeverity(t.due)==='soon'?'due-soon':'due-ok'}">${formatDate(t.due)}</div>`:''}
+      <button onclick="deleteTask('${t.id}')" style="font-size:11px;color:var(--text2);background:none;border:none;cursor:pointer">削除</button>
+    </div>
+  </div>`).join('');
+}
+
+function filterTasks(f, el){
+  currentTaskFilter=f;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderTasks();
+}
+
+function toggleTask(id){
+  const t = tasks.find(t=>t.id===id);
+  if(t){ t.done=!t.done; saveData('tasks',tasks); renderTasks(); renderToday(); }
+}
+function deleteTask(id){
+  tasks = tasks.filter(t=>t.id!==id);
+  saveData('tasks',tasks); renderTasks();
+}
+
+// ===== Timetable =====
+function renderTimetable(){
+  const el = document.getElementById('tt-grid');
+  const dow = todayDow();
+  let html = '<div></div>';
+  DAYS.forEach((d,i)=>{ html+=`<div class="tt-head" style="${i===dow?'color:var(--green)':''}">${d}</div>`; });
+  PERIOD_TIMES.forEach((p,pi)=>{
+    html+=`<div class="tt-time">${p.label}<br>${p.start}</div>`;
+    DAYS.forEach((d,di)=>{
+      const c = timetable[`${di}-${pi}`];
+      const isTodaycol = di===dow;
+      if(c){
+        html+=`<div class="tt-cell filled ${isTodaycol?'today-col':''}" onclick="showClassDetail(${di},${pi})">
+          <div class="tt-subject">${c.name}</div>
+        </div>`;
+      } else {
+        html+=`<div class="tt-cell empty ${isTodaycol?'today-col':''}" onclick="openEditCell(${di},${pi})">
+          <div style="text-align:center;color:rgba(255,255,255,0.1);font-size:14px">+</div>
+        </div>`;
+      }
+    });
+  });
+  el.innerHTML=html;
+}
+
+function openEditCell(day, period){
+  currentEditCell={day,period};
+  const c = timetable[`${day}-${period}`];
+  document.getElementById('c-name').value = c?c.name:'';
+  document.getElementById('c-room').value = c?c.room:'';
+  document.getElementById('c-teacher').value = c?c.teacher:'';
+  document.getElementById('c-code').value = c?c.code||'':'';
+  document.getElementById('class-modal-title').textContent =
+    `${DAYS[day]}曜 ${PERIOD_TIMES[period].label}`;
+  document.getElementById('modal-class').classList.add('open');
+}
+
+function saveClass(){
+  const name = document.getElementById('c-name').value.trim();
+  const room = document.getElementById('c-room').value.trim();
+  const teacher = document.getElementById('c-teacher').value.trim();
+  const code = document.getElementById('c-code').value.trim();
+  const key = `${currentEditCell.day}-${currentEditCell.period}`;
+  if(name){
+    timetable[key]={name,room,teacher,code};
+    // ensure attendance entry
+    if(!attendance[name]) attendance[name]=[];
+    saveData('attend', attendance);
+  } else {
+    delete timetable[key];
+  }
+  saveData('tt', timetable);
+  closeModal('modal-class');
+  renderTimetable();
+}
+
+// ===== Attendance =====
+function renderAttendance(){
+  const el = document.getElementById('attend-list');
+  const subjects = Object.keys(attendance);
+  if(!subjects.length){ el.innerHTML='<div class="empty-state">時間割に授業を登録すると出席記録できます</div>'; return; }
+  el.innerHTML = subjects.map(s=>{
+    const recs = attendance[s]||[];
+    const present = recs.filter(r=>r.status==='present').length;
+    const absent = recs.filter(r=>r.status==='absent').length;
+    const late = recs.filter(r=>r.status==='late').length;
+    const total = recs.length;
+    const rate = total>0 ? Math.round(present/total*100) : '-';
+    const dots = recs.slice(-15).map(r=>`<div class="dot ${r.status}"></div>`).join('');
+    return `<div class="attend-item">
+      <div style="flex:1">
+        <div class="attend-subject">${s}</div>
+        <div class="attend-dots" style="margin-top:6px">${dots}</div>
+        <div class="attend-stat" style="margin-top:6px">出席: <span>${present}</span> 欠席: <span style="color:var(--red)">${absent}</span> 遅刻: <span style="color:var(--amber)">${late}</span> 出席率: <span>${rate}%</span></div>
+      </div>
+      <div class="attend-btns">
+        <button class="attend-btn btn-present" onclick="markAttend('${s}','present')">出席</button>
+        <button class="attend-btn btn-late" onclick="markAttend('${s}','late')">遅刻</button>
+        <button class="attend-btn btn-absent" onclick="markAttend('${s}','absent')">欠席</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function markAttend(subject, status){
+  if(!attendance[subject]) attendance[subject]=[];
+  const today = new Date().toDateString();
+  attendance[subject] = attendance[subject].filter(r=>r.date!==today);
+  attendance[subject].push({date:today, status});
+  saveData('attend', attendance);
+  renderAttendance();
+}
+
+// ===== Add modal dispatch =====
+function openAdd(){
+  if(currentPage==='tt') return;
+  if(currentPage==='attend') return;
+  document.getElementById('t-title').value='';
+  document.getElementById('t-subject').value='';
+  document.getElementById('t-due').value='';
+  document.getElementById('t-memo').value='';
+  document.getElementById('modal-task').classList.add('open');
+}
+
+function addTask(){
+  const title = document.getElementById('t-title').value.trim();
+  if(!title) return;
+  tasks.push({
+    id: Date.now().toString(),
+    title,
+    subject: document.getElementById('t-subject').value.trim(),
+    due: document.getElementById('t-due').value || null,
+    memo: document.getElementById('t-memo').value.trim(),
+    done: false,
+    created: new Date().toISOString()
+  });
+  saveData('tasks', tasks);
+  closeModal('modal-task');
+  renderTasks();
+  renderToday();
+}
+
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+// ===== Settings =====
+function loadSettings(){
+  settings = loadData('settings', {notifyBefore:30, remindTask:2});
+  document.getElementById('notify-before').value = settings.notifyBefore;
+  document.getElementById('remind-task').value = settings.remindTask;
+}
+function saveSettings(){
+  settings.notifyBefore = parseInt(document.getElementById('notify-before').value);
+  settings.remindTask = parseInt(document.getElementById('remind-task').value);
+  saveData('settings', settings);
+}
+function exportData(){
+  const blob = new Blob([JSON.stringify({timetable,tasks,attendance,settings}, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='schedule-backup.json'; a.click();
+}
+function clearAll(){
+  if(confirm('すべてのデータを削除しますか？')) {
+    localStorage.clear(); timetable={}; tasks=[]; attendance={}; settings={notifyBefore:30,remindTask:2};
+    renderToday();
+  }
+}
+
+// ===== Service Worker Registration =====
+let swRegistration = null;
+
+async function registerSW() {
+  if (!('serviceWorker' in navigator)) {
+    showSWBanner(false, 'このブラウザはService Workerに非対応です。.icsをご利用ください。');
+    return;
+  }
+  try {
+    swRegistration = await navigator.serviceWorker.register('sw.js', { scope: './' });
+    await navigator.serviceWorker.ready;
+    console.log('[App] SW registered');
+    checkNotifyPermission();
+  } catch(e) {
+    console.warn('[App] SW registration failed', e);
+    showSWBanner(false, 'Service Worker登録に失敗しました。GitHub PagesからアクセスするとHTTPSで動作します。');
+  }
+}
+
+function showSWBanner(ok, msg) {
+  const okBanner = document.getElementById('sw-status-banner');
+  const warnBanner = document.getElementById('sw-warn-banner');
+  if (!okBanner || !warnBanner) return;
+  if (ok) {
+    okBanner.style.display = 'block';
+    warnBanner.style.display = 'none';
+  } else {
+    okBanner.style.display = 'none';
+    warnBanner.style.display = 'block';
+    warnBanner.textContent = msg || '';
+  }
+}
+
+async function checkNotifyPermission() {
+  if (!('Notification' in window)) {
+    showSWBanner(false, 'このブラウザは通知に非対応です。');
+    return;
+  }
+  if (Notification.permission === 'granted') {
+    showSWBanner(true);
+    // 毎朝アプリを開いたとき自動スケジュール
+    await doScheduleNotifications();
+  } else if (Notification.permission === 'denied') {
+    showSWBanner(false, '🚫 通知がブロックされています。設定アプリ → Safari → 通知 から許可してください。');
+  } else {
+    showSWBanner(false, '🔔 通知を許可すると授業前に通知が届きます。下の「今日の通知をスケジュール」を押してください。');
+  }
+}
+
+async function scheduleNotificationsNow() {
+  const statusEl = document.getElementById('reminder-status');
+  if (!('Notification' in window)) {
+    if (statusEl) { statusEl.textContent = 'お使いのブラウザは通知非対応です'; statusEl.style.color = 'var(--red)'; }
+    return;
+  }
+  // 権限リクエスト
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') {
+    showSWBanner(false, '🚫 通知が許可されませんでした。設定アプリ → 通知 から手動で許可してください。');
+    if (statusEl) { statusEl.textContent = '通知が許可されませんでした'; statusEl.style.color = 'var(--red)'; }
+    return;
+  }
+  showSWBanner(true);
+  const count = await doScheduleNotifications();
+  if (statusEl) {
+    statusEl.textContent = count > 0 ? `✅ 今日の授業 ${count}件の通知をスケジュールしました` : '今日の授業はありません';
+    statusEl.style.color = count > 0 ? 'var(--green)' : 'var(--text2)';
+  }
+}
+
+async function doScheduleNotifications() {
+  if (!swRegistration) return 0;
+  const sw = swRegistration.active || (await navigator.serviceWorker.ready).active;
+  if (!sw) return 0;
+
+  const dow = todayDow();
+  if (dow >= 5) return 0;
+
+  const before = settings.notifyBefore || 30;
+  const today = new Date();
+  const notifications = [];
+
+  PERIOD_TIMES.forEach((p, i) => {
+    const c = timetable[`${dow}-${i}`];
+    if (!c) return;
+    const [h, m] = p.start.split(':').map(Number);
+    const fireTime = new Date(today);
+    fireTime.setHours(h, m - before, 0, 0);
+    if (fireTime <= new Date()) return; // 過去スキップ
+    notifications.push({
+      fireAt: fireTime.getTime(),
+      title: `📚 もうすぐ ${p.label}`,
+      body: `${c.name}（${c.room || '教室未設定'}）が${before}分後に始まります`,
+      tag: `class-${dow}-${i}`,
+    });
+  });
+
+  // 課題リマインダー
+  tasks.filter(t => !t.done && t.due).forEach(t => {
+    const due = new Date(t.due);
+    const fireTime = new Date(due.getTime() - settings.remindTask * 86400000);
+    if (fireTime > new Date() && fireTime - new Date() < 86400000) {
+      notifications.push({
+        fireAt: fireTime.getTime(),
+        title: `⚠️ 課題の期限が迫っています`,
+        body: `「${t.title}」の提出期限は${formatDate(t.due)}`,
+        tag: `task-${t.id}`,
+      });
+    }
+  });
+
+  sw.postMessage({ type: 'SCHEDULE_NOTIFICATIONS', notifications });
+  return notifications.filter(n => n.tag.startsWith('class')).length;
+}
+
+function scheduleClassNotifications() { /* replaced by SW */ }
+function updateNotifyStatus() { /* replaced by SW */ }
+
+// ===== Notifications / Countdown =====
+function getNextClass(){
+  const dow = todayDow();
+  if(dow >= 5) return null;
+  const now = new Date();
+  const nowMin = now.getHours()*60 + now.getMinutes();
+  for(let i=0; i<PERIOD_TIMES.length; i++){
+    const c = timetable[`${dow}-${i}`];
+    if(!c) continue;
+    const [h,m] = PERIOD_TIMES[i].start.split(':').map(Number);
+    const startMin = h*60+m;
+    if(startMin > nowMin) return { c, period: PERIOD_TIMES[i], minsLeft: startMin - nowMin };
+  }
+  return null;
+}
+
+function renderNextClassBanner(){
+  const next = getNextClass();
+  const banner = document.getElementById('next-class-banner');
+  const reminderArea = document.getElementById('reminder-register-area');
+  const headerEl = document.getElementById('next-class-header');
+  if(!banner) return;
+
+  if(next){
+    banner.style.display = 'flex';
+    document.getElementById('next-class-name').textContent = next.c.name;
+    document.getElementById('next-class-countdown').textContent = next.minsLeft;
+    const label = next.minsLeft <= 10 ? '⚡ もうすぐ次の授業' : '⏰ 次の授業';
+    document.getElementById('next-class-label').textContent = label + `（${next.period.label} ${next.period.start}〜）`;
+    if(headerEl) headerEl.textContent = `次: ${next.c.name} ${next.minsLeft}分後`;
+    if(reminderArea) reminderArea.style.display = 'block';
+  } else {
+    banner.style.display = 'none';
+    if(headerEl) headerEl.textContent = '';
+    if(reminderArea) reminderArea.style.display = 'none';
+  }
+}
+
+// ===== AI Scan =====
+let scanMode = 'tt';
+let scannedData = null;
+let scanImageBase64 = null;
+
+function openScanModal(mode){
+  scanMode = mode;
+  scannedData = null;
+  scanImageBase64 = null;
+  document.getElementById('scan-title').textContent = mode==='tt' ? '時間割をスクショから読み取る' : '課題をスクショから読み取る';
+  document.getElementById('scan-desc').textContent = mode==='tt'
+    ? '大学ポータルの時間割ページのスクショを選択してください'
+    : '課題・レポート一覧ページのスクショを選択してください';
+  document.getElementById('scan-preview').style.display='none';
+  document.getElementById('scan-result').style.display='none';
+  document.getElementById('scan-loading').style.display='none';
+  document.getElementById('scan-submit-btn').style.display='none';
+  document.getElementById('scan-drop').style.display='block';
+  document.getElementById('scan-file').value='';
+  document.getElementById('modal-scan').classList.add('open');
+}
+
+function handleScanFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async ev => {
+    const dataUrl = ev.target.result;
+    scanImageBase64 = dataUrl.split(',')[1];
+    document.getElementById('scan-img').src = dataUrl;
+    document.getElementById('scan-preview').style.display='block';
+    document.getElementById('scan-drop').style.display='none';
+    document.getElementById('scan-loading').style.display='block';
+    document.getElementById('scan-result').style.display='none';
+    document.getElementById('scan-submit-btn').style.display='none';
+    await runAIScan();
+  };
+  reader.readAsDataURL(file);
+}
+
+async function runAIScan(){
+  const prompt = scanMode==='tt'
+    ? `この画像は大学の時間割表です。授業情報をすべて読み取ってJSON形式で返してください。
+必ずJSONのみを返し、説明文やコードブロック記号は不要です。
+形式:
+{"timetable":[{"day":0,"period":0,"name":"科目名","room":"教室"},...]}
+dayは0=月,1=火,2=水,3=木,4=金。periodは0=1限,1=2限,2=3限,3=4限,4=5限。
+読み取れない場合は空配列を返してください。`
+    : `この画像は大学の課題・レポート一覧ページです。課題情報をすべて読み取ってJSON形式で返してください。
+必ずJSONのみを返し、説明文やコードブロック記号は不要です。
+形式:
+{"tasks":[{"title":"課題名","subject":"科目名","due":"2025-05-10T23:59"},...]}
+日時はISO形式で。読み取れない場合は空配列を返してください。`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        messages:[{role:'user', content:[
+          {type:'image', source:{type:'base64', media_type:'image/jpeg', data:scanImageBase64}},
+          {type:'text', text:prompt}
+        ]}]
+      })
+    });
+    const data = await res.json();
+    const text = data.content.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim();
+    scannedData = JSON.parse(text);
+    showScanResult();
+  } catch(err) {
+    document.getElementById('scan-loading').style.display='none';
+    document.getElementById('scan-result').style.display='block';
+    document.getElementById('scan-result-content').innerHTML =
+      `<div style="color:var(--red);font-size:13px;text-align:center;padding:16px">読み取りに失敗しました。<br>別のスクショで試してみてください。</div>`;
+  }
+}
+
+function showScanResult(){
+  document.getElementById('scan-loading').style.display='none';
+  document.getElementById('scan-result').style.display='block';
+  document.getElementById('scan-submit-btn').style.display='block';
+  const el = document.getElementById('scan-result-content');
+
+  if(scanMode==='tt'){
+    const items = scannedData.timetable||[];
+    if(!items.length){ el.innerHTML='<div style="color:var(--text2);font-size:13px;text-align:center;padding:12px">授業が見つかりませんでした</div>'; return; }
+    const dayNames=['月','火','水','木','金'];
+    el.innerHTML=`<div style="font-size:12px;color:var(--text2);margin-bottom:8px">以下の授業が読み取れました（${items.length}件）</div>`
+      +items.map(c=>`<div class="scan-item">
+        <div class="scan-item-title">${c.name}</div>
+        <div class="scan-item-meta">${dayNames[c.day]||'?'}曜 ${c.period+1}限 ${c.room?'・'+c.room:''}</div>
+      </div>`).join('');
+  } else {
+    const items = scannedData.tasks||[];
+    if(!items.length){ el.innerHTML='<div style="color:var(--text2);font-size:13px;text-align:center;padding:12px">課題が見つかりませんでした</div>'; return; }
+    el.innerHTML=`<div style="font-size:12px;color:var(--text2);margin-bottom:8px">以下の課題が読み取れました（${items.length}件）</div>`
+      +items.map(t=>`<div class="scan-item">
+        <div class="scan-item-title">${t.title}</div>
+        <div class="scan-item-meta">${t.subject||''} ${t.due?'・期限: '+new Date(t.due).toLocaleDateString('ja-JP'):''}</div>
+      </div>`).join('');
+  }
+}
+
+function submitScan(){
+  if(!scannedData) return;
+  if(scanMode==='tt'){
+    (scannedData.timetable||[]).forEach(c=>{
+      if(c.day>=0&&c.day<5&&c.period>=0&&c.period<5&&c.name){
+        timetable[`${c.day}-${c.period}`]={name:c.name, room:c.room||'', teacher:''};
+        if(!attendance[c.name]) attendance[c.name]=[];
+      }
+    });
+    saveData('tt', timetable);
+    saveData('attend', attendance);
+    closeModal('modal-scan');
+    renderTimetable();
+  } else {
+    (scannedData.tasks||[]).forEach(t=>{
+      if(t.title){
+        tasks.push({id:Date.now().toString()+Math.random(), title:t.title,
+          subject:t.subject||'', due:t.due||null, memo:'', done:false, created:new Date().toISOString()});
+      }
+    });
+    saveData('tasks', tasks);
+    closeModal('modal-scan');
+    renderTasks();
+    renderToday();
+  }
+}
+
+// URLパラメータからのインポート処理
+async function handleURLImport(){
+  const params = new URLSearchParams(window.location.search);
+  const mode = params.get('import');
+  const raw = params.get('raw');
+  if(!mode || !raw) return;
+
+  // URLパラメータを消す
+  window.history.replaceState({}, '', APP_URL);
+
+  // ローディング表示
+  document.body.insertAdjacentHTML('beforeend',
+    `<div id="import-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
+      <div style="font-size:32px;animation:spin 1s linear infinite">⏳</div>
+      <div style="color:white;font-size:15px">マイログのデータを読み取っています...</div>
+    </div>`
+  );
+
+  try {
+    const prompt = mode==='tasks'
+      ? `以下はマイログの課題一覧ページのテキストです。課題情報をJSONで返してください。JSONのみ返してください。
+形式: {"tasks":[{"title":"課題名","subject":"科目名","due":"2026-05-10T23:59"}]}
+テキスト:\n${raw}`
+      : `以下はマイログの時間割または課題ページのテキストです。
+時間割が含まれていれば {"type":"timetable","timetable":[{"day":0,"period":0,"name":"科目名","room":"教室","teacher":"教員名"}]}
+課題一覧が含まれていれば {"type":"tasks","tasks":[{"title":"課題名","subject":"科目名","due":"2026-05-10T23:59"}]}
+どちらか判断してJSONのみ返してください。dayは0=月〜4=金、periodは0=1限〜4=5限。
+テキスト:\n${raw}`;
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        messages:[{role:'user', content: prompt}]
+      })
+    });
+    const data = await res.json();
+    const text = data.content.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(text);
+
+    const type = parsed.type || mode;
+    let count = 0;
+
+    if(type==='timetable' && parsed.timetable){
+      parsed.timetable.forEach(c=>{
+        if(c.day>=0&&c.day<5&&c.period>=0&&c.period<5&&c.name){
+          timetable[`${c.day}-${c.period}`]={name:c.name,room:c.room||'',teacher:c.teacher||''};
+          if(!attendance[c.name]) attendance[c.name]=[];
+          count++;
+        }
+      });
+      saveData('tt', timetable);
+      saveData('attend', attendance);
+    } else if(type==='tasks' && parsed.tasks){
+      parsed.tasks.forEach(t=>{
+        if(t.title && !tasks.find(x=>x.title===t.title)){
+          tasks.push({id:Date.now().toString()+Math.random(),title:t.title,
+            subject:t.subject||'',due:t.due||null,memo:'',done:false,created:new Date().toISOString()});
+          count++;
+        }
+      });
+      saveData('tasks', tasks);
+    }
+
+    document.getElementById('import-overlay').remove();
+    alert(`✅ ${count}件のデータを取り込みました！`);
+    renderToday();
+    if(type==='timetable') renderTimetable();
+    else renderTasks();
+
+  } catch(e) {
+    document.getElementById('import-overlay').remove();
+    alert('取り込みに失敗しました。もう一度お試しください。');
+  }
+}
+
+// ===== Quick Links =====
+const QUICK_LINKS = [
+  { icon:'🏠', label:'マイログ トップ', url:'https://mylog.pub.ous.ac.jp/uprx/up/pk/pky001/Pky00101.xhtml', badge:'mylog' },
+  { icon:'📅', label:'時間割を見る', url:'https://mylog.pub.ous.ac.jp/uprx/up/xu/xub001/Xub00101.xhtml', badge:'mylog' },
+  { icon:'📝', label:'課題・レポート一覧', url:'https://mylog.pub.ous.ac.jp/uprx/up/jg/jga005/Jga00502.xhtml', badge:'mylog' },
+  { icon:'📖', label:'シラバス検索', url:'https://mylog.pub.ous.ac.jp/uprx/up/km/pky001/Pky00101.xhtml', badge:'mylog' },
+  { icon:'📊', label:'成績照会', url:'https://mylog.pub.ous.ac.jp/uprx/up/so/soa001/Soa00101.xhtml', badge:'mylog' },
+  { icon:'🎓', label:'Google Classroom', url:'https://classroom.google.com/', badge:'Google' },
+  { icon:'📹', label:'Google Meet（授業参加）', url:'https://meet.google.com/', badge:'Google' },
+  { icon:'📧', label:'大学メール（Gmail）', url:'https://mail.google.com/', badge:'Google' },
+  { icon:'📁', label:'Google Drive', url:'https://drive.google.com/', badge:'Google' },
+  { icon:'🗺️', label:'岡山理科大 キャンパスマップ', url:'https://www1.ous.ac.jp/gakusyu/2017rikadaimap2.pdf', badge:'OUS' },
+  { icon:'🌐', label:'岡山理科大 ホームページ', url:'https://www.ous.ac.jp/', badge:'OUS' },
+  { icon:'📚', label:'図書館', url:'https://lib.ous.ac.jp/', badge:'OUS' },
+];
+
+const BADGE_COLORS = {
+  'mylog': ['rgba(124,106,245,0.2)', 'var(--accent2)'],
+  'Google': ['rgba(74,222,128,0.15)', 'var(--green)'],
+  'OUS': ['rgba(251,191,36,0.15)', 'var(--amber)'],
+};
+
+function renderQuickLinks(){
+  const el = document.getElementById('quick-links-list');
+  if(!el) return;
+  el.innerHTML = QUICK_LINKS.map(lk => {
+    const [bg, col] = BADGE_COLORS[lk.badge] || ['rgba(255,255,255,0.1)', 'var(--text2)'];
+    return `<a href="${lk.url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;background:var(--card2);border-radius:10px;padding:11px 13px;color:var(--text);text-decoration:none" ontouchstart="this.style.opacity=0.7" ontouchend="this.style.opacity=1">
+      <span style="font-size:18px;width:24px;text-align:center">${lk.icon}</span>
+      <span style="flex:1;font-size:13px;font-weight:500">${lk.label}</span>
+      <span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${bg};color:${col}">${lk.badge}</span>
+      <span style="font-size:12px;color:var(--text2)">↗</span>
+    </a>`;
+  }).join('');
+}
+
+// ===== Syllabus Data =====
+const SYLLABUS = {
+  '線形代数Ⅰ': {
+    code:'F29290', credits:'2.0単位', format:'対面',
+    grade:'理解度確認試験１ 33%\n理解度確認試験２ 33%\n達成度確認試験 34%\n※60%以上合格',
+    book:'１冊でマスター 大学の線形代数／石井俊全／技術評論社',
+    contacts:[{label:'江本先生にメール', email:'emoto@ous.ac.jp'}, {label:'研究室: A1号館5階', email:null}],
+    syllabus:'https://mylog.pub.ous.ac.jp/uprx/up/km/pky001/Pky00101.xhtml'
+  },
+  '情報リテラシー': {
+    code:'F18110', credits:'2.0単位', format:'対面',
+    grade:'コンピュータ基本操作10%\n文書演習30%\n表計算演習30%\nプレゼン演習30%\n※60%以上合格',
+    book:'情報リテラシー Windows10/Office2019対応／富士通FOM',
+    contacts:[{label:'荒木先生にメール', email:'araki@ous.ac.jp'}, {label:'研究室: C3号館6階', email:null}],
+    syllabus:'https://mylog.pub.ous.ac.jp/uprx/up/km/pky001/Pky00101.xhtml'
+  },
+  '情報理工学概論': {
+    code:'F17780', credits:'1.0単位', format:'オンライン（VOD）※5月中旬〜',
+    grade:'提出課題のみで評価\n※60%以上合格',
+    book:'適宜資料配布',
+    contacts:[{label:'各クラスチューター（荒木先生）にメール', email:'araki@ous.ac.jp'}],
+    syllabus:'https://mylog.pub.ous.ac.jp/uprx/up/km/pky001/Pky00101.xhtml'
+  },
+  '初修外国語１ 中国語': {
+    code:'F07260', credits:'2.0単位', format:'対面',
+    grade:'出席・授業態度・課題20%\n小テスト20%\n到達度確認テスト30%\n期末試験30%',
+    book:'中国語の教室／張勤／白帝社 ISBN:978-4-86398-140-9',
+    contacts:[{label:'楊先生（初回授業で連絡先通知）', email:null}],
+    syllabus:'https://mylog.pub.ous.ac.jp/uprx/up/km/pky001/Pky00101.xhtml'
+  },
+  '電子計算機概論': {
+    code:'F29380', credits:'2.0単位', format:'対面',
+    grade:'小テスト×13回 計65%\n達成度確認試験 35%\n※60%以上合格',
+    book:'電子計算機概論[第２版]／新保・松尾／森北出版 ISBN:978-4627706828',
+    contacts:[{label:'佐藤先生にメール', email:'y-sato@ous.ac.jp'}, {label:'研究室: C7号館2階', email:null}],
+    syllabus:'https://mylog.pub.ous.ac.jp/uprx/up/km/pky001/Pky00101.xhtml'
+  },
+  'プログラミング基礎': {
+    code:'F29300', credits:'2.0単位', format:'対面（実習室）',
+    grade:'課題提出等 60%\n達成度確認試験 40%\n※60%以上合格\n⚠️ 生成AI使用禁止',
+    book:'新・明解C言語 入門編 第2版／柴田望洋／ソフトバンク ISBN:978-4-8156-0979-5',
+    contacts:[{label:'荒木先生にメール', email:'araki@ous.ac.jp'}, {label:'研究室: A1号館5階1511', email:null}],
+    syllabus:'https://mylog.pub.ous.ac.jp/uprx/up/km/pky001/Pky00101.xhtml'
+  },
+  'フレッシュマンセミナー': {
+    code:'F01560', credits:'2.0単位', format:'対面（理大ホール）',
+    grade:'マンダラチャート（A×1, B×2）各20% = 60%\nその他課題登録 各10% = 40%\n※合否判定',
+    book:'キャリアデザイン入門（ディスコ作成）',
+    contacts:[{label:'河野先生にメール', email:'kohno@ous.ac.jp'}, {label:'担任 荒木先生にメール', email:'araki@ous.ac.jp'}],
+    syllabus:'https://mylog.pub.ous.ac.jp/uprx/up/km/pky001/Pky00101.xhtml'
+  },
+  'クリエイティブチャレンジⅠ': {
+    code:'F28460', credits:'2.0単位', format:'対面（実習室）',
+    grade:'課題 30%\n最終競技（ロボコン等）70%\n※60%以上合格',
+    book:'教員配布資料',
+    contacts:[{label:'赤木先生にメール', email:'akagi@ous.ac.jp'}, {label:'荒木先生にメール', email:'araki@ous.ac.jp'}, {label:'横田先生にメール', email:'m-yokota@ous.ac.jp'}],
+    syllabus:'https://mylog.pub.ous.ac.jp/uprx/up/km/pky001/Pky00101.xhtml'
+  },
+  '基礎解析Ⅰ': {
+    code:'F17580', credits:'2.0単位', format:'対面',
+    grade:'配布プリント演習 10%\n中間試験 40%\n期末試験 50%\n※60%以上合格',
+    book:'理工系入門 微分積分／石原・浅野／裳華房 ISBN:9784785315184',
+    contacts:[{label:'荒木先生にメール（担任兼任）', email:'araki@ous.ac.jp'}, {label:'研究室: C3号館6階', email:null}],
+    syllabus:'https://mylog.pub.ous.ac.jp/uprx/up/km/pky001/Pky00101.xhtml'
+  },
+  '技術を読みとく（AI時代を読みとく）': {
+    code:'F07770', credits:'2.0単位', format:'オンライン（VOD）',
+    grade:'レポート + 学習状況\n※受講2/3以下でE評価',
+    book:'資料配布',
+    contacts:[{label:'榊原先生にメール', email:'sakaki@ous.ac.jp'}, {label:'研究室: B5号館2F', email:null}],
+    syllabus:'https://mylog.pub.ous.ac.jp/uprx/up/km/pky001/Pky00101.xhtml'
+  },
+  '科学・工作ボランティア入門': {
+    code:'F05110', credits:'2.0単位', format:'対面',
+    grade:'レポート 70%\n発表会 30%\n※60%以上合格',
+    book:'使用しない',
+    contacts:[{label:'高原先生にメール', email:'takahara@ous.ac.jp'}, {label:'研究室: A1号館3階319', email:null}],
+    syllabus:'https://mylog.pub.ous.ac.jp/uprx/up/km/pky001/Pky00101.xhtml'
+  },
+  '基盤化学実験 金45': {
+    code:'F08110', credits:'2.0単位', format:'対面（実験室）⚠️ 白衣・保護眼鏡必須',
+    grade:'レポート 100%\n※60%以上合格',
+    book:'岡山理科大学 化学実験－手引きと演習－（書店販売なし）',
+    contacts:[{label:'青木先生にメール', email:'aoki@ous.ac.jp'}, {label:'研究室: A1号館3階323', email:null}],
+    syllabus:'https://mylog.pub.ous.ac.jp/uprx/up/km/pky001/Pky00101.xhtml'
+  },
+};
+
+// チューター（担任）
+const HOMEROOM = { name:'荒木 圭典', email:'araki@ous.ac.jp', room:'C3号館6階' };
+
+// ===== Class Detail Modal =====
+let detailDay = null, detailPeriod = null;
+
+function showClassDetail(day, period){
+  const c = timetable[`${day}-${period}`];
+  if(!c) return;
+  detailDay = day; detailPeriod = period;
+  const p = PERIOD_TIMES[period];
+  const dayName = DAYS[day];
+  const syl = SYLLABUS[c.name] || {};
+
+  document.getElementById('detail-period-badge').textContent = `${dayName}曜 ${p.label}`;
+  document.getElementById('detail-name').textContent = c.name;
+  document.getElementById('detail-teacher').textContent = c.teacher ? '👤 ' + c.teacher : '';
+  document.getElementById('detail-time').textContent = `${p.start} 〜 ${p.end}`;
+  document.getElementById('detail-room').textContent = c.room || '未設定';
+  document.getElementById('detail-credits').textContent = syl.credits || '-';
+  document.getElementById('detail-format').textContent = syl.format || '-';
+
+  // 成績評価
+  const gradeArea = document.getElementById('detail-grade-area');
+  if(syl.grade){ gradeArea.style.display='block'; document.getElementById('detail-grade').textContent = syl.grade; }
+  else gradeArea.style.display='none';
+
+  // 教科書
+  const bookArea = document.getElementById('detail-book-area');
+  if(syl.book){ bookArea.style.display='block'; document.getElementById('detail-book').textContent = syl.book; }
+  else bookArea.style.display='none';
+
+  // 連絡先ボタン
+  const contactArea = document.getElementById('detail-contact-area');
+  const contactBtns = document.getElementById('detail-contact-btns');
+  const contacts = syl.contacts || [];
+  if(contacts.length){
+    contactArea.style.display='block';
+    contactBtns.innerHTML = contacts.map(ct => ct.email
+      ? `<div style="display:flex;align-items:center;gap:6px">
+          <a href="mailto:${ct.email}" style="flex:1;display:flex;align-items:center;gap:8px;background:var(--card);border-radius:10px;padding:10px 13px;color:var(--accent2);text-decoration:none;font-size:13px">
+            <span>✉️</span><span style="flex:1">${ct.label}</span><span style="font-size:11px;color:var(--text2)">${ct.email}</span>
+          </a>
+          <button onclick="copyEmail('${ct.email}',this)" style="flex-shrink:0;padding:10px 11px;border-radius:10px;background:var(--card);border:none;color:var(--text2);font-size:14px;cursor:pointer" title="アドレスをコピー">📋</button>
+        </div>`
+      : `<div style="display:flex;align-items:center;gap:8px;background:var(--card);border-radius:10px;padding:10px 13px;font-size:13px;color:var(--text2)">
+          <span>🏢</span><span>${ct.label}</span>
+        </div>`
+    ).join('');
+  } else contactArea.style.display='none';
+
+  // マップ
+  const binfo = getBuildingInfo(c.room||'');
+  document.getElementById('detail-map-btn').style.display = (binfo && c.room !== 'ONLINE') ? 'block' : 'none';
+
+  // mylogリンク（授業コードがあれば）
+  const sylCode = syl.code || c.code || null;
+  const mylogBtn = document.getElementById('detail-mylog-btn');
+  const mylogLink = document.getElementById('detail-mylog-link');
+  if(sylCode){
+    mylogLink.href = `https://mylog.pub.ous.ac.jp/uprx/up/bs/bsa001/Bsa00101.xhtml?jikanwaricd=${sylCode}`;
+    mylogBtn.style.display = 'block';
+  } else {
+    mylogBtn.style.display = 'none';
+  }
+
+  // 関連課題
+  const related = tasks.filter(t => !t.done && t.subject && c.name.includes(t.subject.slice(0,4)));
+  const tasksArea = document.getElementById('detail-tasks-area');
+  if(related.length){
+    tasksArea.innerHTML = `<div style="font-size:11px;color:var(--text2);margin-bottom:6px">関連する未完了課題</div>`
+      + related.map(t=>`<div style="background:var(--card);border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:13px;font-weight:500">${t.title}</div>
+        ${t.due?`<div class="task-due ${dueSeverity(t.due)==='urgent'?'due-urgent':dueSeverity(t.due)==='soon'?'due-soon':'due-ok'}" style="font-size:11px">${formatDate(t.due)}</div>`:''}
+      </div>`).join('');
+  } else tasksArea.innerHTML = '';
+
+  document.getElementById('modal-detail').classList.add('open');
+}
+
+function showClassDetailByDowPeriod(dow, period){
+  showClassDetail(dow, period);
+}
+
+function detailShowMap(){
+  const c = timetable[`${detailDay}-${detailPeriod}`];
+  if(c){ closeModal('modal-detail'); showBuildingMap(c.room); }
+}
+
+function detailEdit(){
+  closeModal('modal-detail');
+  openEditCell(detailDay, detailPeriod);
+}
+
+// ===== Building Map =====
+const BUILDINGS = {
+  'C': {
+    name:'Cブロック（C号館）',
+    desc:'C1〜C3号館。大講義室・理大ホールなど',
+    color:'#10b981', block:'C',
+    pin:{x:63, y:27},
+    floors:'C1号館 8F: 理大ホール\nC1〜C3号館に講義室多数'
+  },
+  'A': {
+    name:'Aブロック（A号館）',
+    desc:'A0〜A5号館。講義室・情報科学系実験室など',
+    color:'#f97316', block:'A',
+    pin:{x:43, y:50},
+    floors:'A0532=5F / A0561=5F / A0521=5F\nA0133=1F / A0125=1F / A0126=1F'
+  },
+  'B': {
+    name:'Bブロック（B号館）',
+    desc:'B0〜B5号館。講義室など',
+    color:'#8b5cf6', block:'B',
+    pin:{x:57, y:20},
+    floors:'B0521=5F'
+  },
+  'F': {
+    name:'Fブロック（F号館）',
+    desc:'Fブロック。実験室・化学系',
+    color:'#0ea5e9', block:'F',
+    pin:{x:72, y:57},
+    floors:'F17880 / F17780 / F29300\nF07260 / F29380 / F18110\nF07770 / F05110 / F28460'
+  },
+  'A1': {
+    name:'A1号館',
+    desc:'情報科学科実験室・メディア実習室',
+    color:'#f97316', block:'A',
+    pin:{x:43, y:50},
+    floors:'5F: メディア実習室\n6F: 情報科学科実験室2'
+  },
+  'A7': {
+    name:'A7号館',
+    desc:'ものづくり実習室',
+    color:'#f97316', block:'A',
+    pin:{x:46, y:53},
+    floors:'2F: ものづくり実習室'
+  },
+};
+
+function getBuildingInfo(room){
+  if(!room || room==='ONLINE') return null;
+  if(room.startsWith('C1号館')) return BUILDINGS['C'];
+  if(room.match(/^C\d/)) return BUILDINGS['C'];
+  if(room.startsWith('A1号館')) return BUILDINGS['A1'];
+  if(room.startsWith('A7号館')) return BUILDINGS['A7'];
+  if(room.match(/^A\d/)) return BUILDINGS['A'];
+  if(room.match(/^B\d/)) return BUILDINGS['B'];
+  if(room.match(/^[FZ]\d/)) return BUILDINGS['F'];
+  return null;
+}
+
+function showBuildingMap(room){
+  const b = getBuildingInfo(room);
+  if(!b) return;
+  document.getElementById('bmap-name').textContent = b.name;
+  document.getElementById('bmap-room').textContent = '🚪 ' + room;
+  document.getElementById('bmap-desc').textContent = b.desc;
+  document.getElementById('bmap-floors').textContent = b.floors||'';
+  document.getElementById('bmap-color').style.background = b.color;
+  document.getElementById('bmap-block-badge').textContent = b.block+'ブロック';
+
+  // ピンを画像上に配置（画像ロード後に位置を確定）
+  const img = document.getElementById('bmap-img');
+  const pin = document.getElementById('bmap-pin');
+  pin.style.color = b.color;
+  const setPin = () => {
+    const rect = img.getBoundingClientRect();
+    const w = img.offsetWidth, h = img.offsetHeight;
+    pin.style.left = (b.pin.x / 100 * w) + 'px';
+    pin.style.top  = (b.pin.y / 100 * h) + 'px';
+  };
+  if(img.complete) setPin();
+  else img.onload = setPin;
+
+  document.getElementById('modal-bmap').classList.add('open');
+  setTimeout(setPin, 100);
+}
+
+// ===== Copy Email =====
+function copyEmail(email, btn){
+  navigator.clipboard.writeText(email).then(()=>{
+    const orig = btn.textContent;
+    btn.textContent = '✅';
+    btn.style.color = 'var(--green)';
+    setTimeout(()=>{ btn.textContent = orig; btn.style.color = 'var(--text2)'; }, 1800);
+  }).catch(()=>{
+    const ta = document.createElement('textarea');
+    ta.value = email;
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = '✅';
+    setTimeout(()=>{ btn.textContent = '📋'; }, 1800);
+  });
+}
+
+// ===== Init =====
+registerSW();
+handleURLImport();
+renderToday();
+renderNextClassBanner();
+setInterval(()=>{ renderToday(); renderNextClassBanner(); }, 60000);
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el=>{
+  el.addEventListener('click', e=>{ if(e.target===el) el.classList.remove('open'); });
+});
+</script>
+</body>
+</html>
